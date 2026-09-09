@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Lifting Log</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page:        #f9f9f7;
+    --surface:     #fcfcfb;
+    --surface-2:   #f2f1ec;
+    --text-1:      #0b0b0b;
+    --text-2:      #52514e;
+    --text-muted:  #898781;
+    --grid:        #e1e0d9;
+    --border:      rgba(11,11,11,0.10);
+    --accent:      #2a78d6;
+    --accent-soft: #cde2fb;
+    --good:        #0ca30c;
+    --warning:     #fab219;
+    --amrap:       #8657d6;
+    --amrap-soft:  #e6dcf9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page:        #0d0d0d;
+      --surface:     #1a1a19;
+      --surface-2:   #232320;
+      --text-1:      #ffffff;
+      --text-2:      #c3c2b7;
+      --text-muted:  #898781;
+      --grid:        #2c2c2a;
+      --border:      rgba(255,255,255,0.10);
+      --accent:      #3987e5;
+      --accent-soft: #184f95;
+      --good:        #0ca30c;
+      --warning:     #fab219;
+      --amrap:       #a785e8;
+      --amrap-soft:  #33255a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page:        #0d0d0d;
+    --surface:     #1a1a19;
+    --surface-2:   #232320;
+    --text-1:      #ffffff;
+    --text-2:      #c3c2b7;
+    --text-muted:  #898781;
+    --grid:        #2c2c2a;
+    --border:      rgba(255,255,255,0.10);
+    --accent:      #3987e5;
+    --accent-soft: #184f95;
+    --good:        #0ca30c;
+    --warning:     #fab219;
+    --amrap:       #a785e8;
+    --amrap-soft:  #33255a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 20px 14px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  h1 {
+    font-size: 1.3rem;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .today {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  /* day tabs */
+  .day-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .day-tabs::-webkit-scrollbar { display: none; }
+  .day-tab {
+    flex: 0 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .day-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .day-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-1);
+    margin-top: 2px;
+  }
+
+  /* exercise cards */
+  .exercise {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .exercise-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .exercise-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .exercise-sub {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .chip {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chip.straight { background: var(--accent-soft); color: var(--accent); }
+  .chip.amrap { background: var(--amrap-soft); color: var(--amrap); }
+
+  .last-time {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 6px 9px;
+  }
+  .last-time b { color: var(--text-2); font-weight: 600; }
+
+  .field-row {
+    display: flex;
+    gap: 8px;
+  }
+  .field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .field label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 9px 8px;
+    font-size: 0.95rem;
+    color: var(--text-1);
+    font-variant-numeric: tabular-nums;
+    font-family: inherit;
+    text-align: center;
+  }
+  .field input:focus, .field select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  .field.wide { flex: 1.4; }
+
+  /* cardio card */
+  .cardio-fields {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .cardio-fields .field { min-width: 70px; }
+
+  /* footer bar */
+  .footer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+  .save-status {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    flex: 1;
+  }
+  .copy-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .copy-btn:active { opacity: 0.85; }
+
+  .summary-box {
+    display: none;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .summary-box.open { display: block; }
+  .summary-box textarea {
+    width: 100%;
+    min-height: 140px;
+    background: transparent;
+    border: none;
+    color: var(--text-1);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  .summary-box .hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Lifting Log</h1>
+    <div class="today" id="todayLabel"></div>
+  </header>
+
+  <div class="day-tabs" id="dayTabs"></div>
+  <div class="day-name" id="dayName"></div>
+
+  <div id="exerciseList"></div>
+
+  <div class="exercise" id="cardioCard">
+    <div class="exercise-head">
+      <div class="exercise-name">Cardio</div>
+    </div>
+    <div class="field">
+      <label>Type</label>
+      <select id="cardioType">
+        <option value="">None</option>
+        <option value="Bike">Bike</option>
+        <option value="Treadmill Run">Treadmill Run</option>
+        <option value="Elliptical">Elliptical</option>
+        <option value="StairMaster">StairMaster</option>
+      </select>
+    </div>
+    <div class="cardio-fields" id="cardioFields" style="display:none;">
+      <div class="field"><label>Level</label><input type="number" id="cardioLevel" inputmode="decimal" /></div>
+      <div class="field"><label>Time (min)</label><input type="number" id="cardioTime" inputmode="decimal" /></div>
+      <div class="field"><label>Distance</label><input type="number" id="cardioDistance" inputmode="decimal" step="0.1" /></div>
+    </div>
+  </div>
+
+  <div class="summary-box" id="summaryBox">
+    <textarea id="summaryText" readonly></textarea>
+    <div class="hint">Paste this to Claude in your Lifting Tracker session to log it.</div>
+  </div>
+
+</div>
+
+<div class="footer-bar">
+  <div class="save-status" id="saveStatus">Autosaves as you go</div>
+  <button class="copy-btn" id="copyBtn">Copy summary</button>
+</div>
+
+<script>
+  // ---- workout plan (mirrors Lifting_Tracker.md) ----
+  const plan = {
+    1: {
+      name: "Push (Chest Emphasis)",
+      exercises: [
+        { id: "incline_db_press", name: "Incline DB Press", target: "3×10", type: "straight",
+          last: "Skipped last time (nauseous). ~1.5 yrs ago: 55s — likely 40-45s now." },
+        { id: "dips", name: "Dips (assisted)", target: "4×10", type: "straight",
+          last: "80 lb assistance — goal: drop to 70 lb" },
+        { id: "pec_deck", name: "Pec Deck", target: "3× AMRAP (cap ~10)", type: "amrap",
+          last: "150 lb — 9, 8, 7 (true failure on rep 7)" },
+        { id: "skull_crushers", name: "Skull Crushers", target: "3×10", type: "straight",
+          last: "20 lb DBs — last set 10. Hit 13+ → +5 lb next time.", sup: "superset w/ Chest Press" },
+        { id: "chest_press", name: "Chest Press", target: "3× AMRAP", type: "amrap",
+          last: "Skipped last time (nauseous, end of workout)", sup: "superset w/ Skull Crushers" },
+        { id: "tricep_ext", name: "Tricep Extension (both arms)", target: "3×12, fail last set", type: "straight",
+          last: "35 lb cable — last set 13 → try 40 lb next time" },
+        { id: "delt_raises", name: "Delt Raises", target: "3× AMRAP", type: "amrap",
+          last: "25 lb — 9, 9, 9" },
+      ],
+    },
+    2: {
+      name: "Back & Biceps (A)",
+      exercises: [
+        { id: "bb_row_pronated", name: "Bent-Over Barbell Row (pronated)", target: "3×10, AMRAP last set", type: "straight",
+          last: "Skipped 2 sessions in a row — equipment tied up" },
+        { id: "low_pull", name: "Low Pull, single arm", target: "3×12", type: "straight",
+          last: "42.5 lb cable — last set 12" },
+        { id: "preacher_curl", name: "Single-Arm Preacher Curl (DB)", target: "3× AMRAP", type: "amrap",
+          last: "20 lb DB — 8, 6, 6" },
+        { id: "hammer_curls", name: "Hammer Curls", target: "3×10-12", type: "straight",
+          sup: "superset into Goblet Curls" },
+        { id: "goblet_curls", name: "Goblet Curls", target: "AMRAP to failure", type: "amrap",
+          sup: "superset w/ Hammer Curls" },
+        { id: "straight_arm_pulldown_d2", name: "Straight-Arm Pulldown", target: "3× AMRAP", type: "amrap",
+          last: "65 lb — 8, 7, 6 (up from 6, 5, 4)" },
+        { id: "face_pulls", name: "Face Pulls", target: "3×10-12", type: "straight",
+          last: "50 lb — 12, 12, 12" },
+        { id: "burnout_hammer_curls", name: "Burnout Rope Hammer Curls", target: "3× AMRAP", type: "amrap",
+          last: "50 lb cable — 5, 4, 3", sup: "superset w/ Face Pulls" },
+      ],
+    },
+    3: {
+      name: "Legs",
+      exercises: [
+        { id: "single_leg_press", name: "Single Leg Press (seat-sliding)", target: "3×10", type: "straight",
+          last: "Replaces split squats — hip-friendly variant" },
+        { id: "leg_ext", name: "Leg Extensions (single leg)", target: "3×10", type: "straight" },
+        { id: "leg_curls", name: "Leg Curls", target: "3× AMRAP", type: "amrap" },
+        { id: "abductor", name: "Abductor", target: "3×12, slow", type: "straight",
+          last: "Machine maxed out — go slow" },
+        { id: "adductor", name: "Adductor", target: "3×10", type: "straight" },
+        { id: "back_ext", name: "Back/Glute Extension", target: "3× AMRAP", type: "amrap",
+          last: "Often skipped if there's a line" },
+        { id: "cable_crunch", name: "Cable Crunches", target: "3× AMRAP", type: "amrap" },
+        { id: "cable_side_bend", name: "Cable Side Bend", target: "3× AMRAP", type: "amrap" },
+      ],
+    },
+    4: {
+      name: "Shoulders / Chest (secondary)",
+      exercises: [
+        { id: "incline_db_press_d4", name: "Incline DB Press", target: "3×10", type: "straight" },
+        { id: "db_shoulder_press", name: "DB Shoulder Press", target: "3×8-10", type: "straight" },
+        { id: "chest_fly", name: "Chest Fly", target: "3×10", type: "straight" },
+        { id: "shoulder_raises", name: "Shoulder Raises (cable)", target: "3×10", type: "straight",
+          last: "Likely a front raise — forward/up arm path" },
+        { id: "upright_row", name: "Upright Row", target: "3×10", type: "straight" },
+        { id: "db_oh_tricep", name: "DB Overhead Tricep Extension", target: "3×10", type: "straight" },
+        { id: "lateral_raises", name: "Lateral Raises", target: "3×10", type: "straight",
+          last: "T-shape, arms straight out to sides" },
+        { id: "tricep_pulldown", name: "Tricep Pulldown", target: "3× AMRAP", type: "amrap" },
+      ],
+    },
+    5: {
+      name: "Back & Biceps (B)",
+      exercises: [
+        { id: "bb_row_supinated", name: "Bent-Over Barbell Row (supinated)", target: "3×10, AMRAP last set", type: "straight" },
+        { id: "lat_pulldown", name: "Lat Pulldown", target: "3×12", type: "straight" },
+        { id: "incline_db_curls", name: "Incline DB Curls", target: "3×10", type: "straight",
+          sup: "superset w/ Chest-Supported Military Row" },
+        { id: "csm_row", name: "Chest-Supported Military Row", target: "3× AMRAP", type: "amrap",
+          sup: "superset w/ Incline DB Curls" },
+        { id: "ez_preacher_curl", name: "EZ Bar Preacher Curls", target: "3×10", type: "straight" },
+        { id: "shrugs", name: "Shrugs", target: "3× AMRAP", type: "amrap",
+          sup: "superset w/ Straight-Arm Lat Pulldown" },
+        { id: "straight_arm_pulldown_d5", name: "Straight-Arm Lat Pulldown", target: "3×10", type: "straight",
+          sup: "superset w/ Shrugs" },
+      ],
+    },
+  };
+
+  const dayTabsEl = document.getElementById("dayTabs");
+  const dayNameEl = document.getElementById("dayName");
+  const exerciseListEl = document.getElementById("exerciseList");
+  const todayLabelEl = document.getElementById("todayLabel");
+  const saveStatusEl = document.getElementById("saveStatus");
+
+  const todayStr = new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  todayLabelEl.textContent = todayStr;
+  const storageDateKey = new Date().toISOString().slice(0, 10);
+
+  let activeDay = Number(localStorage.getItem("liftlog_active_day")) || 1;
+
+  function storageKey(day) {
+    return `liftlog_${storageDateKey}_day${day}`;
+  }
+
+  function loadDayData(day) {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey(day))) || {};
+    } catch (e) { return {}; }
+  }
+
+  function saveDayData(day, data) {
+    localStorage.setItem(storageKey(day), JSON.stringify(data));
+    saveStatusEl.textContent = "Saved " + new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderTabs() {
+    dayTabsEl.innerHTML = "";
+    Object.keys(plan).forEach(dayNum => {
+      const btn = document.createElement("button");
+      btn.className = "day-tab" + (Number(dayNum) === activeDay ? " active" : "");
+      btn.textContent = "Day " + dayNum;
+      btn.addEventListener("click", () => {
+        activeDay = Number(dayNum);
+        localStorage.setItem("liftlog_active_day", activeDay);
+        renderTabs();
+        renderDay();
+      });
+      dayTabsEl.appendChild(btn);
+    });
+  }
+
+  function renderDay() {
+    const day = plan[activeDay];
+    dayNameEl.textContent = "Day " + activeDay + " — " + day.name;
+    exerciseListEl.innerHTML = "";
+    const data = loadDayData(activeDay);
+
+    day.exercises.forEach(ex => {
+      const card = document.createElement("div");
+      card.className = "exercise";
+
+      const sub = ex.sup ? ex.sup : "";
+      card.innerHTML = `
+        <div class="exercise-head">
+          <div>
+            <div class="exercise-name">${ex.name}</div>
+            ${sub ? `<div class="exercise-sub">${sub}</div>` : ""}
+          </div>
+          <span class="chip ${ex.type}">${ex.type === "amrap" ? "AMRAP" : "STRAIGHT"} · ${ex.target}</span>
+        </div>
+        ${ex.last ? `<div class="last-time"><b>Last:</b> ${ex.last}</div>` : ""}
+      `;
+
+      const fieldRow = document.createElement("div");
+      fieldRow.className = "field-row";
+
+      const weightField = document.createElement("div");
+      weightField.className = "field";
+      weightField.innerHTML = `<label>Weight</label><input type="number" inputmode="decimal" step="2.5" placeholder="lb" />`;
+      const weightInput = weightField.querySelector("input");
+      weightInput.value = data[ex.id]?.weight ?? "";
+      weightInput.addEventListener("input", () => {
+        data[ex.id] = data[ex.id] || {};
+        data[ex.id].weight = weightInput.value;
+        saveDayData(activeDay, data);
+      });
+      fieldRow.appendChild(weightField);
+
+      if (ex.type === "straight") {
+        const lsField = document.createElement("div");
+        lsField.className = "field";
+        lsField.innerHTML = `<label>LS Reps</label><input type="number" inputmode="numeric" placeholder="reps" />`;
+        const lsInput = lsField.querySelector("input");
+        lsInput.value = data[ex.id]?.ls ?? "";
+        lsInput.addEventListener("input", () => {
+          data[ex.id] = data[ex.id] || {};
+          data[ex.id].ls = lsInput.value;
+          saveDayData(activeDay, data);
+        });
+        fieldRow.appendChild(lsField);
+      } else {
+        [1, 2, 3].forEach(setNum => {
+          const setField = document.createElement("div");
+          setField.className = "field";
+          setField.innerHTML = `<label>Set ${setNum}</label><input type="number" inputmode="numeric" placeholder="reps" />`;
+          const setInput = setField.querySelector("input");
+          const key = "set" + setNum;
+          setInput.value = data[ex.id]?.[key] ?? "";
+          setInput.addEventListener("input", () => {
+            data[ex.id] = data[ex.id] || {};
+            data[ex.id][key] = setInput.value;
+            saveDayData(activeDay, data);
+          });
+          fieldRow.appendChild(setField);
+        });
+      }
+
+      card.appendChild(fieldRow);
+      exerciseListEl.appendChild(card);
+    });
+
+    // cardio (shared per day, stored under its own key in the same day data)
+    const cardioTypeEl = document.getElementById("cardioType");
+    const cardioFieldsEl = document.getElementById("cardioFields");
+    const cardioLevelEl = document.getElementById("cardioLevel");
+    const cardioTimeEl = document.getElementById("cardioTime");
+    const cardioDistanceEl = document.getElementById("cardioDistance");
+
+    const cardio = data.__cardio || {};
+    cardioTypeEl.value = cardio.type || "";
+    cardioLevelEl.value = cardio.level || "";
+    cardioTimeEl.value = cardio.time || "";
+    cardioDistanceEl.value = cardio.distance || "";
+    cardioFieldsEl.style.display = cardio.type ? "flex" : "none";
+
+    function saveCardio() {
+      data.__cardio = {
+        type: cardioTypeEl.value,
+        level: cardioLevelEl.value,
+        time: cardioTimeEl.value,
+        distance: cardioDistanceEl.value,
+      };
+      saveDayData(activeDay, data);
+    }
+    cardioTypeEl.onchange = () => {
+      cardioFieldsEl.style.display = cardioTypeEl.value ? "flex" : "none";
+      saveCardio();
+    };
+    cardioLevelEl.oninput = saveCardio;
+    cardioTimeEl.oninput = saveCardio;
+    cardioDistanceEl.oninput = saveCardio;
+
+    document.getElementById("summaryBox").classList.remove("open");
+  }
+
+  function buildSummary() {
+    const day = plan[activeDay];
+    const data = loadDayData(activeDay);
+    let lines = [`Day ${activeDay}: ${day.name} — ${todayStr}`];
+    day.exercises.forEach(ex => {
+      const d = data[ex.id];
+      if (!d) return;
+      if (ex.type === "straight") {
+        if (d.weight === undefined && d.ls === undefined) return;
+        lines.push(`${ex.name}: ${d.weight || "?"} lb — last set ${d.ls || "?"}`);
+      } else {
+        const sets = [d.set1, d.set2, d.set3].filter(v => v !== undefined && v !== "");
+        if (!d.weight && sets.length === 0) return;
+        lines.push(`${ex.name}: ${d.weight || "?"} lb — ${d.set1 || "-"}, ${d.set2 || "-"}, ${d.set3 || "-"}`);
+      }
+    });
+    if (data.__cardio && data.__cardio.type) {
+      const c = data.__cardio;
+      lines.push(`Cardio: ${c.type} — level ${c.level || "-"}, ${c.time || "-"} min, ${c.distance || "-"} mi`);
+    }
+    if (lines.length === 1) lines.push("(nothing logged yet)");
+    return lines.join("\n");
+  }
+
+  document.getElementById("copyBtn").addEventListener("click", async () => {
+    const summary = buildSummary();
+    const box = document.getElementById("summaryBox");
+    const textarea = document.getElementById("summaryText");
+    textarea.value = summary;
+    box.classList.add("open");
+    try {
+      await navigator.clipboard.writeText(summary);
+      saveStatusEl.textContent = "Copied to clipboard";
+    } catch (e) {
+      textarea.select();
+      saveStatusEl.textContent = "Tap the box below and copy manually";
+    }
+  });
+
+  renderTabs();
+  renderDay();
+</script>
+</body>
+</html>
